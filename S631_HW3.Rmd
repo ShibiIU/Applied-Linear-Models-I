@@ -1,0 +1,162 @@
+---
+title: "S631 HW3"
+author: "Shibi He"
+date: "9/15/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Q1: Reading Assignment.
+
+### Q2: Find $d_{i}$ and $h_{i}$ in terms of $x_{i}$'s and $\bar{x}$s such that, in simple linear regression, $$ \hat{\beta}_{1} =\sum_{i=1}^{n}d_{i}y_{i}$$ and $$ \hat{\beta}_{0}=\sum_{i=1}^{n}h_{i}y_{i}.$$
+
+\textbf{Answer:}
+$$ \hat{\beta}_{1}=\frac{\sum{(x_{i}y_{i}-\bar{x}\bar{y})}}{\sum{(x_{i}-\bar{x})^2}}
+                  =\frac{\sum{x_{i}y_{i}}-n\bar{x}\bar{y}}{\sum{(x_{i}-\bar{x})^2}}
+                  =\frac{\sum{x_{i}y_{i}}-\bar{x}\sum{y_{i}}}{\sum{(x_{i}-\bar{x})^2}}
+                  =\sum{\frac{(x_{i}-\bar{x})}{\sum{(x_{i}-\bar{x})^2}}} y_{i}
+                  =\sum_{i=1}^{n}d_{i}y_{i},$$
+                
+where $d_{i}=\frac{x_{i}-\bar{x}}{\sum_{i=1}^{n}{(x_{i}-\bar{x})^2}}.$
+
+$$\hat{\beta_{0}}= \bar{y}-\hat{\beta_{1}}\bar{x}
+                 =\frac{1}{n}\sum{y_{i}}-\sum{\frac{(x_{i}-\bar{x})\bar{x}}{\sum{(x_{i}-\bar{x})^2}}} y_{i}
+                 =\sum{\bigg[\frac{1}{n}-\frac{(x_{i}-\bar{x})\bar{x}}{\sum{(x_{i}-\bar{x})^2}}\bigg]y_{i}}
+                 =\sum_{i=1}^{n}h_{i}y_{i},$$
+                 
+where $h_{i}=\frac{1}{n}-\frac{(x_{i}-\bar{x})\bar{x}}{\sum{(x_{i}-\bar{x})^2}}.$
+
+
+
+### Q3: ALR 2.2 and 2.4.
+
+\textbf{Answer:}
+
+\textbf{2.2}
+
+\textbf{2.2.1} The key difference between points above this line and points below the line is that the rice price increased from 2003 to 2009 for the points above the $y=x$ line, while the rice price decreased for the points below the line.
+
+\textbf{2.2.2} Vilnius has the largest increase in the rice price. Mumbai has the largest decrease in rice price. 
+
+\textbf{2.2.3} No, $\hat{\beta}_{1}<1$ does not necessarily mean the prices are lower in 2009 than 2003 because the price ($\hat{y}$) is also dependent on $\hat{\beta_{0}}$. If $\hat{\beta_{0}}$ is large enough, we would still have $\hat{y} > \hat{x}$, i.e. the rice price in 2009 is higher than the price in 2003.
+
+\textbf{2.2.4} One reason is that there are some outliers in the data, such as Vilnius and Mumbai. Another possible reason is that the relationship between the rice price in 2003 and 2009 is not likely to be linear, as the cities may be affected by the economic recession differently.
+
+
+\textbf{2.4}
+
+\textbf{2.4.1} Draw the plot of y=bigmac2009 versus x=bigmac2003. 
+```{r, warning=FALSE,message=FALSE}
+library(alr4)
+```
+
+
+```{r}
+data(UBSprices)
+plot(bigmac2009 ~ bigmac2003, UBSprices)
+abline(0, 1)
+
+m1 <- lm(bigmac2009 ~ bigmac2003, data=UBSprices)
+abline(m1, col= "blue") 
+#text(bigmac2009 ~ bigmac2003, labels=rownames(UBSprices),data=UBSprices, cex=0.9, font=2)
+```
+Nairobi is one the most unusual cities as  its price for a Big Mac hamburger is much higher than all other cities, both in 2003 and 2009. Other unusual cases include Jakarta, Caracas, and Mumbai, as Jakarta and Caracas had the largest increase in the price for a Big Mac hamburger from 2003 to 2009, while Mumbai had the largest decrease in the price.
+
+\textbf{2.4.2} One reason that fitting simple linear regression is not appropriate is that there are some outliers in the data, and the linear regression model will be heavily affected by outliers. Another possible reason is that the true relationship between the prices in 2003 and 2009 is not linear. 
+
+\textbf{2.4.3} Plot log(bigmac2009) versus log(bigmac2003).
+```{r}
+plot(log(bigmac2009) ~ log(bigmac2003), UBSprices)
+abline(0, 1)
+
+m1 <- lm(log(bigmac2009) ~ log(bigmac2003), data=UBSprices)
+abline(m1, col= "blue") 
+```
+After taking logs, the relationship seems to be more linear. Therefore, it is more appropriate to use a linear regression to summarize the relationship. 
+
+### Q4: ALR 3.2.
+
+\textbf{Answer:}
+
+\textbf{3.2.1} Examine the scatterplot matrix.
+```{r}
+data(UN11)
+```
+
+```{r}
+pairs(~fertility + log(ppgdp) + pctUrban , data=UN11)
+```
+
+The scatterplot matrix suggests that \emph{fertility} seems to be negatively correlated with \emph{log(ppgdp)} and \emph{pctUrban}, respectively. Moreover, \emph{log(ppgdp)} and \emph{pctUrban} are positively correlated with each other. 
+
+\textbf{3.2.3} Obtain the added-variable plots for both predictors. 
+
+Added-variable plot for log(ppgdp):
+```{r}
+r1 <- residuals(lm(fertility ~ pctUrban, UN11))
+r2 <- residuals(lm(log(ppgdp) ~ pctUrban, UN11))
+m2 <- lm(r1 ~ r2)
+m2
+plot(r1 ~ r2,
+xlab=expression(paste(hat(e), " from log(ppgdp) on pctUrban")),
+ylab=expression(paste(hat(e), " from fertility on pctUrban")))
+abline(m2)
+```
+
+
+Added-variable plot for pctUrban:
+```{r}
+r3 <- residuals(lm(fertility ~ log(ppgdp), UN11))
+r4 <- residuals(lm(pctUrban ~ log(ppgdp), UN11))
+m3 <- lm(r3~ r4)
+m3
+plot(r3 ~ r4,
+xlab=expression(paste(hat(e), " from pctUrban on log(ppgdp)")),
+ylab=expression(paste(hat(e), " from fertility on log(ppgdp)")))
+abline(m3)
+```
+
+
+The added-variable plots show that \emph{log(ppgdp)} is useful after adjusting for \emph{pctUrban}, and \emph{pctUrban} is also useful after adjusting for \emph{log(ppgdp)}. Specifically, the added-variable plots show that there is a relatively strong negative relationship between \emph{fertility} and \emph{log(ppgdp)}, after adjusting for \emph{pctUrban}. The negative relationship between \emph{fertility} and \emph{pctUrban} is relatively weak, after adjusting for \emph{log(ppgdp)}.
+
+
+
+```{r}
+m4 <- lm(fertility ~ log(ppgdp)+pctUrban, UN11)
+m4
+```
+The estimated mean function with both predictors is:
+$$\hat{E}(fertility|log(ppgdp), pctUrban)=7.99-0.62log(ppgdp)-0.0004pctUrban.$$
+The estimated coefficients are exactly the same as the coefficients obtained in the added-variable plots. 
+
+
+\textbf{3.2.4} The estimated coefficient for \emph{log(ppgdp)} is -0.62, which is exactly the same as the estimated slope in the added-variable plots. 
+
+\textbf{3.2.5} Show that the residuals in the added-variable plot are identical to the residuals from te mean function with both predictors. 
+
+
+```{r}
+# residual from the regression with both predictors
+R1 <- residuals(lm(fertility ~ log(ppgdp)+pctUrban, UN11))
+
+# residual from added-varaible plot
+r3 <- residuals(lm(fertility ~ log(ppgdp), UN11))
+r4 <- residuals(lm(pctUrban ~ log(ppgdp), UN11))
+R2 <- residuals(lm(r3~ r4))
+```
+
+
+```{r}
+# Check the residuals are identical
+all.equal(R1, R2)
+```
+The results suggest that the residuals in the added-variable plot are identical to the residuals from the mean function with both predictors. 
+
+
+
+### Q5: I did questions 1-4 and did not do question 5.
