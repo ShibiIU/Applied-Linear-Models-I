@@ -1,0 +1,224 @@
+---
+title: "S631 Assignment6"
+author: "Shibi He"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## 1a. One-factor model
+
+```{r}
+robey <- read.table("Robey.txt", header=TRUE)
+
+m1 <- lm(tfr ~ region, data=robey)
+summary(m1)$coefficients
+```
+
+
+The expected total fertility rate in Africa is about 5.86 children per woman. The expected total fertility rate in Near.East is 1.06 children per woman lower than Africa. The p-value is 5.444346e-02 (>0.05), suggesting that the difference in total fertility rates between Africa and Near.East is not statistically significant. 
+
+
+```{r}
+# change the order of the factor levels to compare Asia vs Latin.Amer 
+#robey$region2 <- factor(robey$region, levels = c("Asia", "Latin.Amer", "Africa", "Near.East"))
+robey$region2 <- relevel(robey$region, ref="Asia")
+
+m1.2 <- lm(tfr ~ region2, data=robey)
+summary(m1.2)$coefficients
+```
+
+The expected total fertility rate in Asia is about 3.54 children per woman. The expected total fertility rate in Latin America is 0.51 children per woman higher than Asia. The p-value is 2.705813e-01(>0.05), suggesting that this difference is not statistically significant. 
+
+
+
+## 1b. Explain coefficients and write out the mean functions
+
+In m1, the intercept $\hat{\beta_{0}}=5.86$, meaning that the expected total fertitity rate in Africa is 5.86 children per woman. The estimated coefficients indicate the differences in expected total fertility rate between other regions and Africa. Specifically, compared to Africa, the expected total fertility rate is 2.32 children per woman lower in Asia, 1.81 lower in Latin America , and 1.06 lower in Near.East. 
+
+The mean functions for each region:
+\begin{align*}
+&\hat{E}(tfr|region=Africa)=\hat{\beta}_{0}=5.86\\
+&\hat{E}(tfr|region=Asia)=\hat{\beta}_{0}+\hat{\beta}_{01}=5.86-2.32=3.54\\
+&\hat{E}(tfr|region=Latin.Amer)=\hat{\beta}_{0}+\hat{\beta}_{02}=5.86-1.81=4.05\\
+&\hat{E}(tfr|region=Near.East)=\hat{\beta}_{0}+\hat{\beta}_{03}=5.86-1.06=4.8\\
+\end{align*}
+
+
+## 1c. Describe the effects plot
+```{r}
+library(alr4)
+plot(Effect(c("region"), m1))
+```
+
+
+The effect plot shows the fitted values of total fertility rate for different regions and their 95% confidence intervals. Africa has the highest expected total fertility rate of 5.86, and Asia has the lowest expected total fertility rate of 3.54. Latin America and Near.East have moderate total fertility rate. 
+
+
+## 1d. Scatterplot with both factor and continuous regressor 
+
+```{r}
+scatterplot(tfr ~ contraceptors|region, data=robey,
+            smooth=FALSE, boxplots=FALSE,
+            ylab="Total Fertility Rate")
+```
+
+
+The scatter plot shows a negative relationship between contraceptors and total fertility rate. As the percent of contraceptors among married women of childbearing age increases, the total fertility rate decreases. The OLS lines of different regions seem to be parallel to each other, so it's unneccesary to consider different slopes. The intercepts of each OLS line are also very similar, so it's unnecessary to consider different intercepts for different regions. 
+
+
+## 1e. Model with interaction terms
+
+```{r}
+m2 <- lm(tfr~region * contraceptors, data=robey)
+summary(m2)$coefficients
+```
+
+The results suggest that the expected total fertility rate in Africa is 6.83 children per woman. Compared to Africa, the expected total fertility rates are 0.32, 0.23, 0.63 lower in Asia, Latin America, and Near.East, respectively. In Africa, as the percent of women using contraception increases by 1 percent, the expected total fertility rate decreases by 0.054 children per woman. In Asia, as the percent of women using contraception increases by 1 percent, the expected total fertility rate decreases by $0.054+0.004=0.058$ children per women. In Latin America, as the percent of women using contraception increases by 1 percent, the expected total fertility rate decreases by $0.054+0.003=0.057$ children per woman. At last, in near East and North Africa, as the percent of woman using contraception increases by 1 percent, the expected total fertility rate decreases by $0.054+0.014=0.068$ children per woman. Only the intercept $\hat{\beta}_{0}$ and slope $\hat{\beta}_{1}$ are statistically significant.
+
+
+
+## 1f. ANOVA analysis
+
+```{r}
+Anova(m2)
+```
+
+The results of F tests suggest that adding the factor "region" to a model that already contains the regressor "contraceptors" is not statistically significant (p=0.1812). Adding the continuous regressor "contraceptors" to a model that already contains "region" is statistically significant (p=8.226e-15). Adding the interaction terms to a model that already contains the main effects is not statistically significant (p=0.7746). Therefore, I would like to fit a model that only contains the continuous regressor "contraceptors". 
+
+
+## 1g. Final model: with "contraceptors" only
+
+```{r}
+m3 <- lm(tfr ~  contraceptors, data=robey)
+summary(m3)$coefficients
+```
+
+```{r}
+plot(Effect("contraceptors", m3))
+```
+
+
+
+
+
+The effect plot shows that as the contraceptors increases, the fitted value of total fertility rate decreases. For example, when the percent of women using contraception increases from 40% to 60%, the fitted total fertility rate decreases approximately from 4.5 to 3.3 children per woman.
+
+
+## 1h. Prediction interval
+
+```{r}
+mean <- mean(robey$contraceptors)
+predict(m3, newdata=data.frame(contraceptors=mean), interval="prediction", level=0.95)
+```
+
+We are 95% confident that the total fertility rate for a new observation with contraceptors equal to its mean is between 3.521472 and 5.854528 children per woman. 
+
+
+## 2. ALR 5.4
+
+### 5.4.1 Boxplot
+```{r}
+data(MinnLand)
+boxplot(log(acrePrice)~year, data=MinnLand, main="Minnesota Agricultural Land Sales",
+   xlab="Year of sale", ylab="log(acrePrice)")
+```
+
+The boxplots show the log(acrePrice) increases gradually from 2002 to 2011. The pattern in US housing sales prices is not apparently repeated in Minnesota farm sales. 
+
+### 5.4.2 Fit a model with factor "year"
+
+```{r}
+MinnLand$Year <- factor(MinnLand$year)
+
+m1 <- lm(log(acrePrice) ~ Year, MinnLand)
+summary(m1)$coefficients
+```
+
+The estimated intercept $\hat{\beta}_{0}=7.27$, meaning that the expected log(acrePrice) in 2002 is 7.27. The estimated slopes indicate how much the log(acrePrice) changes in the other years compared to 2002. The t tests can tell us whether these changes in log(acrePrice) are statistically significant. 
+
+For example, compared to 2002, the expected log(acrePrice) decreased by 0.0016 in year 2003. This decrease is insignificant, as the pvalue=9.614373e-01 (>0.05). The expected log(acrePrice) increased by 0.1479 in year 2004, compared to 2002. This increase is statistically significant as pvalue=2.760361e-06 (<0.05). The log(acrePrice) increased in each year from 2004 to 2011 and these increases are all statistically significant. 
+
+
+### 5.4.3 Fit a model with factor "year", omitting intercept
+
+```{r}
+m2 <- lm(log(acrePrice) ~ -1+Year, MinnLand)
+summary(m2)$coefficients
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+# compute mean of log(acrePrice) for each year and standard errors of sample means
+library(dplyr)
+MinnLand %>%
+  group_by(Year) %>%
+  summarise(mean=mean(log(acrePrice)), se=sd(log(acrePrice))/sqrt(length(log(acrePrice))))
+```
+
+The estimated coefficients are indeed the same as the means of log(acrePrice) for each year. However, the standard errors of the regression coefficients are different from the standard errors of sample means. This is because the standard errors of the regression coefficients are computed as the square root of the diagnol elments of $\hat{\sigma}^{2}(X^{T}X)^{-1}$, where $\hat{\sigma}^{2}$ is the OLS estimator of $\sigma^{2}$, i.e. $\hat{\sigma}^2=\frac{RSS}{n-10}$. While the standard errors of sample means 
+are computed as $\frac{s_{j}}{\sqrt{n_{j}}}$, where $s_{j}$ is simply the sample standard deviation of log(acrePrice) in the $j$th year.
+
+
+## ALR 5.10
+### 5.10.1 Explain the difference
+The difference between these two models is that the first model only contains the main effects, while the second model also contains the interactions between "year" and "region".
+
+
+### 5.10.2 Fit the models
+```{r}
+ma <- lm(log(acrePrice) ~ Year + region, MinnLand)
+mb <- lm(log(acrePrice) ~ Year*region, MinnLand)
+
+plot(allEffects(mb))
+```
+
+The effects plots show the fitted value of log(acrePrice) for all possible combinations of year and region. Specifically, in a particular year, the fitted log(acrePrice) is different in different regions. Also, the fitted log(acrePrice) in a specific region is different in each year. Generally speaking, the log(acrePrice) consistently increased from 2002 to 2011 in all six regions. 
+
+
+## ALR 6.14
+
+### 6.14.1 Fit a model with "year" being a continuous regressor
+```{r}
+mA <- lm(log(acrePrice) ~ year, MinnLand)
+summary(mA)$coefficients
+```
+
+The model indicates that, on average, the price per acre increases by 10.52% every year (exp(0.1)-1=0.1052).
+
+
+### 6.14.2 Fit a model with factor "fyear"
+```{r}
+MinnLand$fyear <- factor(MinnLand$year, label=1:10)
+mB <- lm(log(acrePrice) ~ 1+fyear, MinnLand)
+summary(mB)$coefficients
+```
+
+Model B shows that the expected log(acrePrice) in 2002 is 7.27. The estimated coefficients suggest how much the expected log(acrePrice) changes in each year compared to the year 2002. Generally speaking, the increases in the log(acrePrice) gets larger and larger every year, implying the log(acrePrice) increases every year. 
+
+
+### 6.14.3
+In model A, if year=2002, the expected log(acrePrice) = -193.875966 + 0.100464 * 2002 $\approx$ 7.25, which is very close to the intercept in model B. Model A is a special case of model B, assuming there is a constant increase in log(acrePrice) in each year since 2002. 
+
+
+### 6.14.4 Lack-of-fit test
+
+```{r}
+anova(mA, mB)
+```
+
+
+The result suggest that pvalue<0.05, therefore, we have evidence to reject the null hypethesis that model A is adequate. In other words, model A does not provide an adequate description of the change in log(acrePrice) over time.
+
+
+
+
+
+
+
+
