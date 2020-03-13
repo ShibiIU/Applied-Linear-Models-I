@@ -1,0 +1,204 @@
+---
+title: "S631 HW7"
+author: "Shibi He"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(alr4)
+```
+
+### ALR 5.9.1 Scatterplot 
+
+```{r}
+plot(MaxSalary~Score, data=salarygov)
+m1 <- lm(MaxSalary~Score, salarygov)
+abline(m1, col="blue", lwd=2)
+```
+
+The scatterplot shows that the relationship between Score and MaxSalary seems not to be linear. Many data points are off the fitted linear regression line when the value of Score is high (800-1000). Moreover, the variation in MaxSalary seems to get larger and larger as Score increases. 
+
+
+### ALR 5.9.2 Fit a quadratic polynomial model
+```{r}
+m2 <- lm(MaxSalary ~ Score + I(Score^2), data = salarygov)
+plot(MaxSalary~Score, data=salarygov)
+
+#sort the data
+newdata = data.frame(Score=salarygov$Score, MaxSalary=fitted(m2))
+newdata = newdata[order(newdata$Score), ]
+
+lines(newdata, col="red", lwd=2)
+```
+
+
+The quadratic polynomial model seems to describe the data better. It not only shows the positive relationship between Score and MaxSalary, but also shows that when Score reaches high value, such as 800-1000, the increase in Maxsalary becomes even faster.
+
+
+### ALR 5.9.3 Are female-dominated positions compensated at lower level?
+
+```{r}
+salarygov$percent=(salarygov$NW)/(salarygov$NE)
+salarygov$Fdominant = ifelse(salarygov$percent>=0.7, 1, 0)
+salarygov$Fdominant <- factor(salarygov$Fdominant)
+
+m3 <- lm(MaxSalary ~ Score*Fdominant + I(Score^2)*Fdominant, salarygov)
+summary(m3)$coefficients
+
+plot(Effect(c("Fdominant", "Score"), m3, xlevels=list(Score = 100)),
+     rug=FALSE, grid=TRUE, multiline=TRUE)
+
+#plot(Effect(c("Fdominant", "Score"), m3), multiline=TRUE)
+
+```
+
+
+The effect plot shows that for each Score values, the MaxSalary for female dominated job class (i.e. Fdominant=1) is always lower than the other job class(i.e. Fdominant=0). That means the female dominated positions are compensated at a lower level, adjusting for Score, than other positions.
+
+
+
+### ALR 6.11 Test for interaction and obtain confidence interval
+
+
+```{r}
+summary(m3)$coefficients
+```
+
+The t test results suggest that the interaction terms "Score:Fdominant1" and 
+"Fdominant1:I(Score^2)" do not have statistically significant effects on the expected MaxSalary. Next, I run typeII anova analysis to see if it is adequate to add the interaction terms into a model that already contains the main effects.
+
+
+
+
+```{r}
+Anova(m3)
+```
+
+The results of Type II anova test show that the pvalue for the interaction "Score:Fdominant" and "I(Score^2)*Fdominant" is 0.62 and 0.33, respectively, which suggest that adding the interactions to a model that already contains the main effects is not statistically significant. In other words, there is no sufficient evidence to fit the effects of "Score" separately for female-dominated jobs and all other jobs. 
+
+
+Modify the model:
+```{r}
+m4 <- lm(MaxSalary ~ Fdominant + Score + I(Score^2), salarygov)
+confint(m4)[2,]
+```
+
+The difference in the expected MaxSalary between female-dominated jobs and all other jobs is captured by the estimated coefficient of "Fdominant". The 95% confidence interval for "Fdominant" is (-412.8  -230.3), suggesting that we are 95% confident that the expected MaxSalary for female-dominated jobs are $230.3 to $412.8 lower than all other jobs.
+
+
+
+### ALR 7.4.1 WLS
+If we change the unit of analysis to employees, we are basically working with the grouped data. In other words, each job class is considered to be a group with different sample size. This suggests using WLS with the number of employees in each job class being the weights. These weightes are reasonable as we should pay more attention to job classes that have a large number of employees.
+
+
+### ALR 7.4.2 Repeat previous problem using WLS
+```{r}
+m3.W <- lm(MaxSalary ~ Score*Fdominant + I(Score^2)*Fdominant, salarygov, weights = NE)
+summary(m3.W)$coefficient
+```
+
+Anova test: 
+```{r}
+Anova(m3.W)
+```
+
+
+Again, the t tests results show that the two interaction terms are statistically insignificant and the type II anova test suggests that adding the interaction terms "Score:Fdominant" and "Fdominant:I(Score^2)" to a model that already contains the main effects is not statistically significant (pvalue=0.39 and 0.07, respectively).  
+
+
+
+Modify the model:
+```{r}
+m4.W <- lm(MaxSalary ~ Fdominant + Score + I(Score^2), salarygov, weights = NE)
+confint(m4.W)[2,]
+
+```
+
+
+Using the WLS model, the 95% confidence interval for the difference between female-dominated job classes and all other job classes changes to (-367.8  -239.4). 
+
+
+
+
+### ALR 7.6.1 Scatterplot
+```{r}
+plot(Distance ~ Speed, stopping)
+```
+
+
+The relationship between Speed and Distance looks like a part of a parabola. Moreover, as Speed increases, the variation in Dsitance gets larger and larger. So this graph supports fitting a quadratic regression model.
+
+
+### ALR 7.6.2 Fit a quadratic model
+
+#### Assume constant variance:
+```{r}
+m1 <- lm(Distance ~ Speed + I(Speed^2), data=stopping)
+summary(m1)$coefficients
+```
+
+
+#### Compute score test for nonconstant variance:
+
+```{r}
+# Variance depends on the fitted values
+Z1=with(stopping,ncvTest(m1))
+
+# Variance depends on Speed
+Z2=with(stopping,ncvTest(m1, ~ Speed))
+
+# Variance depends on Speed and Speed^2
+Z3=with(stopping,ncvTest(m1, ~ Speed + I(Speed^2)))
+
+# Make a table
+table1=rbind(with(Z1,c(Df,ChiSquare,p)),with(Z2,c(Df,ChiSquare,p)),with(Z3,c(Df,ChiSquare,p)))
+row.names(table1)=c("Fitted values","Speed","Speed, Speed^2")
+colnames(table1)=c("df","Test statistic","p-Value")
+
+table1
+```
+
+
+#### Is adding Speed^2 helpful?
+```{r}
+1-pchisq(Z3$ChiSquare-Z2$ChiSquare,Z3$Df-Z2$Df)
+```
+
+Comparing Z3 with Z2 gives a p-value of 0.7864, suggesting that the simpler Z with only Speed is adequate. Therefore, adding Speed^2 is not helpful. 
+
+
+### ALR 7.6.3 Refit the quadratic model
+
+```{r}
+m1.W <- lm(Distance ~ Speed + I(Speed^2), data=stopping, weights = 1/Speed)
+compareCoefs(m1, m1.W)
+```
+
+
+Model 1 has constant variance and in Model 2, the variance is weighted by Speed. The estimated coefficients are similar, but the standard errors with weighted variance are less than the standard errors in the unweighted case.
+
+
+
+### ALR 7.6.4 Sandwich estimator of the variance
+
+```{r}
+# variance-covariance matrix for betahat
+hccm(m1, type="hc3")
+```
+
+# Compare the standard errors
+```{r}
+cbind("Unweighted SE"=sqrt(diag(vcov(m1))),
+      "Weighted SE" = summary(m1.W)$coefficient[,2],
+      "HC3 SE"=sqrt(diag(hccm(m1, type="hc3"))))
+```
+
+All HC3 standard errors are greater than the standard errors in the weighted case. Compared to the standard errors in the unweighted case, the HC3 standard error of intercept is lower while the standard errors of Speed and Speed^2 are higher. 
+
+
