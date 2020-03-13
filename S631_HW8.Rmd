@@ -1,0 +1,203 @@
+---
+title: "S631 HW8"
+author: "Shibi He"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(alr4)
+```
+
+### ALR 8.2.1
+```{r}
+m1 = lm(Distance ~ Speed, data=stopping)
+p1=inverseResponsePlot(m1, c(0, 0.5, 1, -1))
+p1
+
+boxCox(m1)
+```
+
+
+In the inverse fitted value plot, the best-fitting curve with $\hat{\lambda}=0.48$ and the square root curve for $\lambda=0.5$ is nearly identical, and so a square root transformation of Distance is suggested. Similarly, using the Box-Cox method, the square root transformation is in the 95% confidene interval for $\hat{\lambda}=0.48$, agreeing with the inverse fitted value plot. So the approporiate transformation for Distance is a square root transformation. 
+
+
+
+
+### ALR 8.2.2
+```{r}
+with(stopping, invTranPlot(Speed, Distance))
+```
+
+
+The above graph shows that none of the fitted lines for $\lambda \in \{-1, 0, 1\}$ is close to the best-fitting line (i.e. $\hat{\lambda}=1.87$) and the RSS(1.87) is much lower than the RSS for the other three values. Therefore, none of these transformation is adequate. 
+
+
+
+
+### ALR 8.2.3
+```{r}
+with(stopping, invTranPlot(Speed, Distance, 2))
+```
+ 
+
+Using $\lambda=2$ is almost identical to the best-fitting line ($\hat{\lambda}=1.87$) and RSS(2) is very close ot RSS(1.87), suggesting using a quadratic polynomial for the regressors. 
+```{r}
+m2 = lm(Distance ~ Speed + I(Speed^2), data=stopping)
+summary(m2)
+```
+
+### ALR 8.2.4 
+
+Hald (1960)'s model:
+```{r}
+m3 = lm(Distance ~ Speed + I(Speed^2), data=stopping, weights= 1/Speed^2 )
+summary(m3)$coefficients
+```
+
+
+Square root transformation of Distance: (model in 8.2.1)
+```{r}
+m4 = lm(sqrt(Distance) ~ Speed, data=stopping)
+summary(m4)$coefficients
+```
+
+
+Plot the fitted values: 
+```{r}
+# Plot fitted curve from Hald's model
+newdata = data.frame(Speed=stopping$Speed, fitted.dist=fitted(m3))
+newdata = newdata[order(newdata$Speed), ]
+
+# Plot fitted value from square root transformation of distance
+newdata2 = data.frame(Speed=stopping$Speed, fitted.dist=fitted(m4)^2)
+newdata2 = newdata2[order(newdata2$Speed), ]
+
+plot(Distance ~ Speed, stopping)
+lines(newdata, col="red", lwd=2)
+lines(newdata2, col="blue", lwd=2)
+```
+
+
+
+The fit of these two models are almost identical as these two models are essentially the same. They both fit the data very well. 
+
+
+### ALR 8.6.1
+```{r}
+Wool$len=factor(Wool$len)
+Wool$amp=factor(Wool$amp)
+Wool$load=factor(Wool$load)
+scatterplotMatrix(Wool, smooth = F,
+                   diagonal = F)
+
+#pairs(~cycles+len+amp+load, Wool)
+```
+
+
+These scatter plots show that as $\it{len}$ increases (i.e.moving from level 1 to 3), $\it{cycles}$ increases. As $\it{amp}$ and $\it{load}$ increases (i.e. moving from level 1 to 3), $\it{cycles}$ decreases. Moreover, the variation in $\it{cycles}$ also increases with $\it{len}$ and decreases with $\it{amp}$ and $\it{load}$.
+
+
+### ALR 8.6.2
+```{r}
+m1 = lm(cycles ~ len + amp + load + len:amp + len:load + amp:load, data=Wool)
+summary(m1)$coefficients
+
+# Alternatively,
+# m1=lm(cycles ~ (len+amp+load)^2, Wool)
+
+```
+
+
+```{r}
+plot(Effect(c("len", "amp"), m1), rug=FALSE, grid=TRUE, multiline=TRUE)
+```
+
+
+The effects plot suggests that as $\it{len}$ moves from level 1 to level 3 (i.e. increases from 250mm to 350mm), the expected $\it{cycles}$ for all three different $\it{amp}$ increases. Moreover, for each specific $\it{len}$, as $\it{amp}$ moves from level 1 to level 3 (i.e. increases from 8mm to 10mm), the expected $\it{cycles}$ decreases. 
+
+
+```{r}
+# anova(m1)
+# Anova(m1)
+# Anova(m1, type=3)
+```
+
+
+### ALR 8.6.3
+
+Fit the first-order mean function:
+```{r}
+m2 = lm(cycles ~ len + amp + load, data=Wool)
+summary(m2)$coefficients
+```
+
+
+Use Box-Cox method to select a transformation for $\it{cycles}$:
+```{r}
+boxCox(m2)
+
+# alternatively
+# summary(powerTransform(m2))
+```
+
+
+The above graph shows that $\lambda=0$ is within the 95% confidence interval of the $\hat{\lambda}$, suggesting that a log transformation of the response $\it{cycles}$ might be adequate. 
+
+
+
+
+### ALR 8.6.4
+
+In the transformed scale, fit both the first-order and second-order model:
+```{r}
+# first-order mean model
+model1 = lm(log(cycles) ~ len + amp + load, data=Wool)
+summary(model1)$coefficients
+```
+
+
+```{r}
+# second-order model
+model2 = lm(log(cycles) ~ len + amp + load + len:amp + len:load + amp:load, data=Wool)
+summary(model2)$coefficients
+```
+
+
+Compute an F-test comparing these two models:
+```{r}
+anova(model1, model2)
+```
+
+
+The F-statistic=2.216 and the pvalue=0.1325, suggesting that we cannot reject the null hypothesis that model1 (i.e. the first-order model) is adequate. 
+
+
+```{r}
+plot(Effect(c("len", "amp"), model1), rug=FALSE, grid=TRUE, multiline=TRUE)
+```
+
+
+Redraw this effects plot with cycles rather than log(cycles):
+```{r}
+# model3 = lm(cycles ~ len + amp + load, data=Wool)
+# summary(model3)$coefficients
+# 
+# plot(Effect(c("len", "amp"), model3), rug=FALSE, grid=TRUE, multiline=TRUE)
+
+plot(Effect(c("len", "amp"), model1, transformation=list(inverse=exp)), multiline=TRUE, rescale.axis=FALSE, ylab="cycles")
+```
+
+
+
+In the effects plot of Problem 8.6.2, the lines are not parallel because when we include the interaction term between $\it{len}$ and $\it{amp}$ into the model, when $\it{amp}$ moves from one level to another, its effects on expected $\it{cycles}$ is different for different velue of $\it{len}$. 
+
+
+However, in this model without interaction terms, the lines in the effects plot are completely parallel. This is because the effects of $\it{amp}$ moving from one level to another are constant, reglardess of the value of $\it{len}$. 
+
+
+
+
+
