@@ -1,0 +1,142 @@
+---
+title: "S631 HW9"
+author: "Shibi He"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+### 2. ALR 9.8 
+```{r, message=FALSE, warning=FALSE}
+library(alr4)
+m1 = lm(log(BSAAM) ~ log(APMAM) + log(APSAB) + log(APSLAKE) + 
+            log(OPBPC) + log(OPRC) + log(OPSLAKE), data= water)
+
+rp=residualPlots(m1)
+```
+
+All of the plots versus individual regressors look like null plot and no visual evidence of curvature. The last plot of residuals versus the fitted values only shows a hint of curvature. But the Tuckey test gives a pvalue of 0.066 (>0.05), so we cannot reject the original mean function. Actually, all of the tests have pvalues greater than 0.05, providing no evidence against the mean function. 
+
+
+
+
+```{r}
+# Alternatively,
+# yhat=fitted(m1)
+# summary(lm(log(BSAAM) ~ log(APMAM) + log(APSAB) + log(APSLAKE) + 
+#log(OPBPC) + log(OPRC) + log(OPSLAKE)+I(yhat^2), water))$coefficients
+# 
+# # pvalue using standard normal distribution
+# 2*(1-pnorm(1.8386))
+# p= 0.06597404
+```
+
+
+
+### 3. ALR 9.18 
+
+
+### i. Draw scatter plots
+```{r}
+scatterplotMatrix(~A+D+S+C+P+E+Rain, data=cloud, smooth = F,
+                  regLine = F, diagonal = F)
+
+View(cloud$C)
+```
+
+
+The scatter plots show that the relationship between $\it{Rain}$ and $\it{S}$, $\it{C}$, $\it{P}$ seems to be somewhat curved, so transformations of these predictors might be useful. The relationship between predictors themselves does not have any specific pattern. 
+
+
+
+### ii. Transformation for the predictors
+```{r}
+bc1 = powerTransform(cbind(S, C, P) ~ 1, cloud)
+summary(bc1)
+
+testTransform(bc1, c(1, 0, 0))
+```
+
+
+Using Box-Cox method, the suggested transformation is no transformation for $\it{S}$, and log transformation for $\it{C}$ and $\it{P}$. The likelihood ratio test for $\lambda$ = (1 0 0) gives a pvalue of 0.38(>0.05), providing no evidence against these transformations. 
+
+
+### iii. Transformation for the response
+```{r}
+m1 = lm(Rain ~ A + D + S + log(C) + log(P) + E, data=cloud)
+p1=inverseResponsePlot(m1, c(0.5, -1, 0, 1))
+p1
+```
+
+The fitted line with $\lambda=0.5$ is very close to the best fitting line($\hat{\lambda}=0.66$), and the RSS($\lambda$=0.5) is also very small, suggesting taking square root of $\it{Rain}$ might be reasonable. 
+
+
+### iv. Draw scatter plots again to check if transformation makes improvment:
+```{r}
+scatterplotMatrix(~A + D + S + log(C) + log(P) + E + sqrt(Rain), 
+                  data=cloud, smooth = F, regLine = F, diagonal = F)
+```
+
+The relationship between response $\it(Rain)$ and the predictors now become relatively more close to linear. 
+
+
+
+
+### v. Fit the model
+```{r}
+m2 = lm(sqrt(Rain) ~ A + D + S + log(C) + log(P) + E, data=cloud)
+summary(m2)
+```
+
+The results show that the p-value for all predictors are greater than 0.05, suggesting none of the predictors has statistically significant effects on rainfall. Next, I turn to model checking. 
+
+
+### vi. Residual plots and test for curvature
+```{r}
+rp = residualPlots(m2)
+```
+
+The residual plots look like null plots and do not have any visual evidence for curvature. Moreover, the Tukey test gives a p-value of 0.29, providing no evidence against the mean function. 
+
+
+### vii. Check for outliers
+```{r}
+outlierTest(m2, cutoff = 0.8)
+```
+
+
+The 15th and 7th observation have the largest standardized residuals with Bonferroni p-values of 0.021 (<0.05) and 0.398 (>0.05), respectively. So observation 7 is an outlier while observation 15 is not an outlier. 
+
+
+### viii. Check for influential cases:
+```{r}
+cooks.distance(m2)
+influenceIndexPlot(m2)
+```
+
+
+Observation 2 and 7 have the largest Cook's ditance (0.55 and 0.58), so they are the relatively more influential observations. Next, I remove these two influential observations and fit the model again to see if they have large impact on the estimated coefficients. 
+
+
+```{r}
+cloud2 = cloud[c(-2, -7),]
+m3 = lm(sqrt(Rain) ~ A + D + S + log(C) + log(P) + E, data=cloud2)
+summary(m3)
+```
+
+
+After removing the influential observations, the coefficients of $\it{A}$, $\it{S}$, and $log(P)$ become significant, that is, cloud seeding is effctive in increasing the rainfall.  
+
+In summary, using all data, we do not find evidence that cloud seeding is effective in increasing rainfall. But this might be largely attributed to the two influential observations. Because when we remove the influential observations (day 2 and day 7), the effect of cloud seeding becomes positive and statistically significant. 
+
+
+
+
+
