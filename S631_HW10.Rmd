@@ -1,0 +1,288 @@
+---
+title: "S631 HW10"
+author: Shibi He
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo = TRUE)
+library(alr4)
+```
+
+
+### 2. ALR 10.6
+
+Handling the missing value in elevation: 
+since none of the six islands exceeds 200m, I substitue the missing elevation with 100m.
+
+I consider the ratio of endemic species to the total number of species as a measure for diversity, i.e. response variable = ES/NS.
+
+
+```{r}
+#summary(galapagos)
+#View(galapagos)
+
+galapagos$Elevation[galapagos$EM == 0] = 100
+
+scatterplotMatrix(~NS+ES+Area+Anear+Dist+DistSC+Elevation, 
+                  diagonal=F, 
+                  smooth=F, 
+                  regLine=F,
+                  data = galapagos)
+```
+
+
+The scatterplot matrix show that many data points concentrate in the lower left area of the graphs and the relationships do not seem to be linear, suggesting transformation of the variables may be needed.  
+
+```{r}
+# transform predictors
+# modify DistSC to be strictly positive
+galapagos$DistSC = galapagos$DistSC + 0.5
+
+bc1 = powerTransform(cbind(Area, Anear, Dist, DistSC, Elevation) ~ 1, galapagos)
+summary(bc1)
+
+# transform response 
+model = lm(ES/NS ~ log(Area) + log(Dist) + log(DistSC) + log(Elevation), galapagos)
+summary(powerTransform(model))
+```
+
+The LR test results suggest to take log transformation for all variables. Check the scatter plots after transformation:
+
+```{r}
+galapagos$logRatio = log(galapagos$ES/galapagos$NS)
+galapagos$logArea = log(galapagos$Area)
+galapagos$logAnear = log(galapagos$Anear)
+galapagos$logDist = log(galapagos$Dist)
+galapagos$logDistSC = log(galapagos$DistSC)
+galapagos$logElevation = log(galapagos$Elevation)
+
+scatterplotMatrix(~logRatio+logArea+logAnear+logDist+logDistSC+logElevation, 
+                  diagonal=F, 
+                  smooth=F, 
+                  regLine=F,
+                  data = galapagos)
+```
+
+The scatter plots look better after the log transformation.
+
+
+Model selection:
+```{r}
+m3.small = lm(logRatio ~ 1, data = galapagos)
+m3.full = lm(logRatio ~ logArea + logAnear + 
+                 logDist + logDistSC + logElevation, 
+                 data = galapagos)
+```
+
+
+```{r}
+## Forward Selection
+m3.fwd = step(m3.small, scope= ~ logArea + logAnear + 
+                  logDist + logDistSC + logElevation,
+                  direction="forward", trace = FALSE)
+m3.fwd$anova
+
+## Backward Elimination
+m3.bck = step(m3.full, scope = ~ 1, direction = "backward", trace = FALSE)
+m3.bck$anova
+
+## Bidirectional Stepwise method
+m3.bi = step(m3.small,
+            scope=list(lower = m3.small, upper = m3.full),
+            direction = "both", trace = FALSE)
+m3.bi$anova
+```
+
+
+Forward selection, backward elimination, and bidirectional stepwise method all suggest the model with "logArea" and "logDistSC" has the lowest AIC of -65.71488. Therefore, "Area" and "DistSC" are two factor that influences the ratio of number of endemic species to the total number of species on an island, i.e. the diversity. The final model I consider is as follows:
+
+```{r}
+m.diversity = lm(logRatio ~ logArea + logDistSC, galapagos)
+summary(m.diversity)
+```
+
+```{r}
+residualPlots(m.diversity)
+```
+
+The residual plots look like null plots and do not have any visual evidence for curvature. So I believe this model does not violate the assumptions for linear model. 
+
+
+
+### 3.a Select model to predict baseball pitchers' salaries.
+
+```{r}
+baseball = read.table("BaseballPitchers.txt", header = TRUE)
+#str(baseball)
+```
+
+
+```{r}
+m.small = lm(salary ~ 1, data = baseball)
+m.full = lm(salary ~ team86+league86+W86+L86+ERA86+
+                     G86+IP86+SV86+years+careerW+careerL+
+                     careerERA+careerG+careerIP+careerSV+
+                     league87+team87, data = baseball)
+```
+
+
+```{r}
+## Forward Selection 
+m.fwd = step(m.small, scope = ~ team86+league86+W86+L86+ERA86+
+                     G86+IP86+SV86+years+careerW+careerL+
+                     careerERA+careerG+careerIP+careerSV+
+                     league87+team87,
+                     direction="forward", trace = FALSE)
+m.fwd$anova
+
+## Backward Elimination
+m.bck = step(m.full, scope = ~ 1, direction = "backward", trace = FALSE)
+m.bck$anova
+
+## Bidirectional Stepwise method
+m.bi = step(m.small,
+            scope=list(lower = m.small, upper = m.full),
+            direction = "both", trace = FALSE)
+m.bi$anova
+```
+
+
+
+Both forward selection and bidirectional stepwise methods suggest that the model with variables "years", "careerERA", "IP86", "team87", "careerSV", "league87" has the lowest AIC of 1991.4. Therefore, these variables should be considered as predictors for baseball pitchers' salaries in 1987. 
+
+
+```{r}
+m.baseball = lm(salary ~ years+careerERA+IP86+
+                    team87+careerSV+league87, 
+                    data = baseball)
+
+summary(m.baseball)
+```
+
+
+```{r}
+residualPlots(m.baseball)
+```
+
+The adjusted R-squared is 0.4879, suggesting that the model only explains 48.8% of the variation in the baseball pitchers' salaries. Moreover, the residual plots show that the residuals are somewhat large, suggesting the model is not very good at predicting salaries. The model makes substantive sense as it takes into account the players' performance over their entire career as well as which team they belong to in 1987 to predict the salaries. 
+
+
+
+### 3.b Cross-validation
+```{r}
+# Randomly split the data into two subsamples
+set.seed(631)
+n = nrow(baseball)
+train_ind <- sample(seq_len(n), size =n/2 )
+
+train <- baseball[train_ind, ]
+test <- baseball[-train_ind, ]
+```
+
+
+```{r}
+### Model selection on the train data
+model.small = lm(salary ~ 1, data = train)
+model.full = lm(salary ~ team86+league86+W86+L86+ERA86+
+                     G86+IP86+SV86+years+careerW+careerL+
+                     careerERA+careerG+careerIP+careerSV+
+                     league87+team87, data = train)
+
+## Forward Selection
+model.fwd = step(model.small, scope = ~ team86+league86+W86+L86+ERA86+
+                     G86+IP86+SV86+years+careerW+careerL+
+                     careerERA+careerG+careerIP+careerSV+
+                     league87+team87,
+                     direction="forward", trace = FALSE)
+model.fwd$anova
+
+## Backward Elimination
+model.bck = step(model.full, scope = ~ 1, direction = "backward", trace = FALSE)
+model.bck$anova
+
+## Bidirectional Stepwise method
+model.bi = step(model.small,
+            scope=list(lower = model.small, upper = model.full),
+            direction = "both", trace = FALSE)
+model.bi$anova
+```
+
+
+The forward selection method gives a model with careerW, careerERA, IP86, careerSV, L86, team87, league87, careerIP (AIC = 1011.544).
+
+The Backward Elimination method gives a model with L86, IP86, SV86, careerW, careerG, careerID, league87, and team87 (AIC = 1008.73). 
+
+The bidirectional stepwise method gives a model with careerW, IP86, careerSV, L86, team87, league87, careerIP (AIC = 1010.092).
+
+
+```{r}
+# Three slected models
+m.forward = lm(salary ~ careerW + careerERA + IP86 + 
+                   careerSV + L86 + team87 + league87 + careerIP, 
+                 data = train)
+
+m.backward = lm(salary ~ L86 + IP86 + SV86 + careerW + 
+                  careerG + careerIP + league87 + team87, 
+                data = train)
+
+m.bidirect = lm(salary ~ careerW + IP86 + careerSV + 
+                    L86 + team87 + league87 + careerIP, 
+                data = train)
+```
+
+
+```{r}
+### Evaluate the selected models on the test data
+
+pred.forward = predict(m.forward, newdata = test, type = "response")
+pred.backward = predict(m.backward, newdata = test, type = "response")
+pred.bidirect = predict(m.bidirect, newdata = test, type = "response")
+name = paste(train$firstName, train$lastName, sep=" ")
+
+compare.df = data.frame(Name = name,
+                        trueSalary = test$salary, 
+                        forward = pred.forward, 
+                        backward = pred.backward, 
+                        bidirect = pred.bidirect)
+
+# compute prediction errors
+compare.df$forward.error = compare.df$forward - compare.df$trueSalary
+compare.df$backward.error = compare.df$backward - compare.df$trueSalary
+compare.df$bidirect.error = compare.df$bidirect - compare.df$trueSalary
+
+# compute SD of the prediction errors
+SD.forward = sd(na.omit(compare.df$forward.error))
+SD.backward = sd(na.omit(compare.df$backward.error))
+SD.bidirect = sd(na.omit(compare.df$bidirect.error))
+
+SD.forward
+SD.backward
+SD.bidirect
+```
+
+
+I found the predicted values are not very close to the ture salary, suggesting the models are not very good at predicting. To compare models using different selection methods, I compare the standard deviations of their prediction errors. While all three models have large standard deviation, the model using forward selection has the relatively small standard deviation, suggesting this model is slightly better. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
